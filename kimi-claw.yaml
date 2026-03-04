@@ -1,0 +1,152 @@
+# AlphaFabric - KIMI CLAW 部署配置
+# 文档: https://kimi-claw.moonshot.cn/docs
+
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: alphafabric
+  description: AI量化交易系统 - 支持A股全市场数据
+  version: 1.0.0
+
+# 服务配置
+service:
+  name: alphafabric
+  type: worker  # worker类型适合定时任务型应用
+  port: 8000
+  
+# 资源配置（适配低配服务器）
+resources:
+  cpu: 2
+  memory: 4Gi
+  disk: 20Gi
+
+# 环境变量
+env:
+  # 必填：TUSHARE TOKEN
+  - name: TUSHARE_TOKEN
+    value: ""  # 请填写你的TUSHARE TOKEN
+    required: true
+    description: "TUSHARE PRO API Token"
+  
+  # Python环境
+  - name: PYTHONUNBUFFERED
+    value: "1"
+  - name: PYTHONDONTWRITEBYTECODE
+    value: "1"
+  
+  # 内存优化
+  - name: MALLOC_ARENA_MAX
+    value: "2"
+  - name: OMP_NUM_THREADS
+    value: "2"
+  - name: OPENBLAS_NUM_THREADS
+    value: "2"
+  - name: MKL_NUM_THREADS
+    value: "2"
+  
+  # AlphaFabric配置
+  - name: ALPHAFABRIC_MODE
+    value: "select"  # select/backtest/trade/update
+  - name: ALPHAFABRIC_CONFIG
+    value: "/app/config/config.yaml"
+  - name: ALPHAFABRIC_LOG_LEVEL
+    value: "INFO"
+
+# 存储卷
+volumes:
+  - name: data
+    path: /app/data
+    size: 10Gi
+    persistent: true
+    description: "股票数据缓存"
+  
+  - name: logs
+    path: /app/logs
+    size: 2Gi
+    persistent: true
+    description: "应用日志"
+  
+  - name: config
+    path: /app/config
+    size: 100Mi
+    persistent: true
+    description: "配置文件"
+
+# 健康检查
+healthCheck:
+  enabled: true
+  type: http
+  path: /health
+  port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 60
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+# 定时任务（核心功能）
+cronjobs:
+  # 每日数据更新（收盘后）
+  - name: daily-update
+    schedule: "30 15 * * 1-5"  # 工作日15:30
+    command: "python run.py --mode update"
+    description: "每日数据更新"
+  
+  # 每日选股（收盘后）
+  - name: daily-select
+    schedule: "35 15 * * 1-5"  # 工作日15:35
+    command: "python run.py --mode select"
+    description: "每日选股"
+  
+  # 每周数据清理（周日）
+  - name: weekly-cleanup
+    schedule: "0 2 * * 0"
+    command: "python -c \"from data_source import LiteDataCache; c = LiteDataCache('/app/data/cache.db'); c.clear_old_data('20240101')\""
+    description: "每周数据清理"
+
+# 扩缩容配置
+scaling:
+  minReplicas: 1
+  maxReplicas: 1  # 单实例运行
+  
+# 日志配置
+logging:
+  level: INFO
+  format: json
+  output: stdout
+  
+# 监控配置
+monitoring:
+  enabled: true
+  metrics:
+    - name: cpu_usage
+      type: gauge
+      description: "CPU使用率"
+    - name: memory_usage
+      type: gauge
+      description: "内存使用率"
+    - name: disk_usage
+      type: gauge
+      description: "磁盘使用率"
+    - name: stock_count
+      type: gauge
+      description: "已缓存股票数量"
+    - name: last_select_time
+      type: gauge
+      description: "上次选股时间"
+
+# 告警配置
+alerts:
+  - name: high_memory
+    condition: "memory_usage > 85"
+    severity: warning
+    description: "内存使用率超过85%"
+  
+  - name: disk_full
+    condition: "disk_usage > 90"
+    severity: critical
+    description: "磁盘空间不足"
+  
+  - name: data_stale
+    condition: "last_select_time > 86400"  # 超过1天未更新
+    severity: warning
+    description: "数据可能已过期"

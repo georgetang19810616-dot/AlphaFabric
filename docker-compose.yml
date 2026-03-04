@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  alphafabric:
+    build: .
+    container_name: alphafabric
+    environment:
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+    # 资源限制（适配2核4GB服务器）
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3.5G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
