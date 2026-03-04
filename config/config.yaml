@@ -1,0 +1,129 @@
+# AlphaFabric - AI量化交易系统配置
+
+# TUSHARE PRO配置
+tushare:
+  token: ""  # 请填写你的TUSHARE TOKEN (https://tushare.pro/register)
+  timeout: 30
+  retries: 3
+
+# 数据配置
+data:
+  # 股票池选项: "all"=全市场A股, "hs300"=沪深300, "zz500"=中证500
+  stock_pool: "all"
+  # 全市场数据时，限制处理股票数量（0=不限制，低配服务器建议设置100-500）
+  max_stocks: 500
+  # 数据缓存路径
+  cache_path: "./data/cache.db"
+  # 历史数据保留天数
+  history_days: 500
+  # 数据类型
+  fields:
+    - open
+    - high
+    - low
+    - close
+    - volume
+    - amount
+
+# 策略配置
+strategies:
+  enabled:
+    - double_ma
+    - macd
+    - momentum
+    - value
+    - ai_predict
+  
+  double_ma:
+    fast_period: 5
+    slow_period: 20
+  
+  macd:
+    fast: 12
+    slow: 26
+    signal: 9
+  
+  momentum:
+    lookback: 20
+    top_n: 50
+  
+  value:
+    max_pe: 30
+    max_pb: 3
+    min_roe: 0.1
+  
+  ai_predict:
+    model_path: "./ai/models/lstm_lite.onnx"
+    threshold: 0.6
+
+# 因子配置
+factors:
+  enabled_count: 30
+  categories:
+    - valuation
+    - quality
+    - momentum
+    - volatility
+    - technical
+    - capital
+    - sentiment
+
+# AI配置
+ai:
+  models:
+    - name: "lstm_lite"
+      path: "./ai/models/lstm_lite.onnx"
+      weight: 0.6
+    - name: "xgboost"
+      path: "./ai/models/xgb_lite.json"
+      weight: 0.4
+  
+  # 选股数量
+  top_n: 10
+
+# 回测配置
+backtest:
+  initial_capital: 1000000
+  commission_rate: 0.0003
+  slippage: 0.001
+  position_limit: 0.2
+
+# 风险控制配置
+risk:
+  # 单票仓位上限
+  position_limit: 0.2
+  # 止损比例
+  stop_loss: 0.08
+  # 止盈比例
+  take_profit: 0.2
+  # 最大回撤
+  max_drawdown: 0.15
+
+# 交易配置
+trading:
+  mode: "simulated"  # simulated, api, qmt
+  
+  # 模拟交易配置
+  simulated:
+    initial_cash: 1000000
+  
+  # 券商API配置（如需实盘）
+  api:
+    broker: ""
+    account: ""
+    password: ""
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "./logs/alphafabric.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# 系统配置
+system:
+  # 内存限制（MB）
+  memory_limit: 3500
+  # 缓存股票数量上限
+  max_cache_stocks: 100
+  # 数据类型优化
+  use_float32: true
